@@ -1,0 +1,316 @@
+# Deployment Plan: RMUTI Surin Loan Management System
+
+## เป้าหมาย
+
+นำระบบบริหารลูกหนี้เงินยืมขึ้นใช้งานจริงบน server โดยมี Frontend Next.js, Backend Express API และ MySQL พร้อมแนวทาง backup, rollback, monitoring และ checklist ก่อนเปิดใช้งาน
+
+## สถาปัตยกรรมแนะนำ
+
+```mermaid
+flowchart LR
+  U["ผู้ใช้งาน"] --> RP["Reverse Proxy / SSL"]
+  RP --> FE["Next.js Frontend :3000"]
+  RP --> BE["Express API :4000"]
+  BE --> DB["MySQL 8.4 :3306"]
+  DB --> BK["Daily Backup"]
+```
+
+## Production Ports
+
+- Public HTTPS: `443`
+- Frontend internal: `3000`
+- Backend internal: `4000`
+- MySQL internal: `3306`
+- ไม่ควรเปิด MySQL public ยกเว้นจำเป็นจริง และต้องจำกัด firewall/IP
+
+## Phase D1: เตรียม Server
+
+1. ติดตั้ง runtime
+   - Node.js 20 LTS หรือใหม่กว่า
+   - npm
+   - Docker และ Docker Compose
+   - Nginx หรือ Apache reverse proxy
+   - PM2 สำหรับ process manager
+
+2. เตรียม path
+   - Project path: `/home/adminrd/docker-lamp-ssl/htdocs/loan`
+   - Log path แนะนำ: `/var/log/rmuti-loan`
+   - Backup path แนะนำ: `/home/adminrd/backups/rmuti-loan`
+
+3. ตั้ง permission
+   - ให้ user ที่ deploy สามารถอ่าน/เขียน project, logs, backups ได้
+   - หลีกเลี่ยงการรัน production process ด้วย `root` ถ้าสามารถแยก user ได้
+
+## Phase D2: ตั้งค่า Environment
+
+สร้างไฟล์ production env จาก `.env.example`
+
+### Backend `.env`
+
+ตัวอย่าง:
+
+```env
+NODE_ENV=production
+PORT=4000
+CLIENT_ORIGIN=https://loan.surin.rmuti.ac.th
+JWT_SECRET=replace-with-long-random-production-secret
+JWT_EXPIRES_IN=1d
+
+DB_HOST=127.0.0.1
+DB_PORT=3307
+DB_USER=loan_user
+DB_PASSWORD=replace-with-strong-db-password
+DB_NAME=rmuti_surin_loan
+```
+
+### Frontend `.env.production`
+
+```env
+NEXT_PUBLIC_APP_NAME="ระบบบริหารลูกหนี้เงินยืม RMUTI Surin"
+NEXT_PUBLIC_API_BASE_URL=https://loan.surin.rmuti.ac.th/api
+NEXTAUTH_URL=https://loan.surin.rmuti.ac.th
+NEXTAUTH_SECRET=replace-with-long-random-production-secret
+```
+
+หมายเหตุ: `NEXT_PUBLIC_API_BASE_URL` ต้องถูกต้องก่อน `npm --prefix frontend run build` เพราะ Next.js จะฝังค่านี้ตอน build
+
+## Phase D3: Database Deployment
+
+1. เริ่ม MySQL
+
+```bash
+cd /home/adminrd/docker-lamp-ssl/htdocs/loan
+docker compose up -d mysql
+```
+
+2. ตรวจ container
+
+```bash
+docker ps
+docker compose logs mysql
+```
+
+3. สำหรับ database ใหม่ migrations จะถูกรันจาก `database/migrations` ตอน container init ครั้งแรก
+
+4. Seed demo เฉพาะ staging/UAT
+
+```bash
+docker exec -i rmuti-surin-loan-mysql mysql \
+  -uloan_user -p rmuti_surin_loan < database/seeds/001_demo_users.sql
+
+docker exec -i rmuti-surin-loan-mysql mysql \
+  -uloan_user -p rmuti_surin_loan < database/seeds/002_demo_notice_thai_fix.sql
+```
+
+5. Production จริงควรสร้าง admin user จริงและไม่ใช้ demo account
+
+## Phase D4: Build
+
+1. ติดตั้ง dependencies
+
+```bash
+cd /home/adminrd/docker-lamp-ssl/htdocs/loan
+npm install
+npm --prefix backend install
+npm --prefix frontend install
+```
+
+2. ตรวจ type และ build
+
+```bash
+npm run typecheck
+npm run build
+```
+
+3. Smoke test หลังเปิด service
+
+```bash
+npm run test:smoke
+```
+
+## Phase D5: Run ด้วย PM2
+
+ติดตั้ง PM2:
+
+```bash
+npm install -g pm2
+```
+
+เริ่ม backend:
+
+```bash
+cd /home/adminrd/docker-lamp-ssl/htdocs/loan
+pm2 start backend/dist/server.js --name rmuti-loan-api
+```
+
+เริ่ม frontend:
+
+```bash
+cd /home/adminrd/docker-lamp-ssl/htdocs/loan/frontend
+pm2 start npm --name rmuti-loan-web -- start
+```
+
+บันทึก startup:
+
+```bash
+pm2 save
+pm2 startup
+```
+
+คำสั่งดูสถานะ:
+
+```bash
+pm2 status
+pm2 logs rmuti-loan-api
+pm2 logs rmuti-loan-web
+```
+
+## Phase D6: Reverse Proxy และ SSL
+
+ตัวอย่าง Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name loan.surin.rmuti.ac.th;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name loan.surin.rmuti.ac.th;
+
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+
+    client_max_body_size 20m;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:4000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+ตรวจ config:
+
+```bash
+nginx -t
+systemctl reload nginx
+```
+
+## Phase D7: Backup และ Restore
+
+### Backup รายวัน
+
+```bash
+mkdir -p /home/adminrd/backups/rmuti-loan
+docker exec rmuti-surin-loan-mysql mysqldump \
+  -uroot -p rmuti_surin_loan \
+  > /home/adminrd/backups/rmuti-loan/rmuti_surin_loan_$(date +%F).sql
+```
+
+แนะนำ retention:
+
+- เก็บ daily 14 วัน
+- เก็บ weekly 8 สัปดาห์
+- เก็บ monthly 12 เดือน
+
+### Restore
+
+```bash
+docker exec -i rmuti-surin-loan-mysql mysql \
+  -uroot -p rmuti_surin_loan \
+  < /home/adminrd/backups/rmuti-loan/rmuti_surin_loan_YYYY-MM-DD.sql
+```
+
+## Phase D8: Security Checklist
+
+- เปลี่ยน `JWT_SECRET`, `NEXTAUTH_SECRET`, database password เป็นค่า production จริง
+- ไม่ commit ไฟล์ `.env`, `.env.production`
+- ปิด public access ของ MySQL
+- เปิด HTTPS เท่านั้น
+- ตั้ง firewall ให้เปิดเฉพาะ `80`, `443`, SSH ที่จำเป็น
+- จำกัดสิทธิ์ user database ให้เท่าที่ระบบใช้
+- ตรวจ demo users ก่อนขึ้น production
+- ตั้งค่า log rotation สำหรับ PM2/Nginx/MySQL
+
+## Phase D9: UAT Checklist
+
+- Login ด้วยบัญชีจริง
+- สร้างรายการขอยืมเงิน
+- ส่งตรวจสอบ/อนุมัติ workflow
+- บันทึกจ่ายเงิน
+- บันทึกส่งใช้เงินยืม
+- ขอขยายอายุสัญญา
+- ออกหนังสือทวง
+- ดาวน์โหลด PDF/Word
+- ตรวจรายงาน dashboard
+- ตรวจ mobile/tablet
+- ตรวจสิทธิ์แต่ละ role
+
+## Phase D10: Go-Live Checklist
+
+1. Freeze code version
+2. Backup database ก่อน deploy
+3. Pull/copy code ไป production path
+4. ติดตั้ง dependencies
+5. ตั้งค่า `.env`
+6. Run migrations/ตรวจ schema
+7. `npm run typecheck`
+8. `npm run build`
+9. Restart PM2 services
+10. Reload reverse proxy
+11. `npm run test:smoke`
+12. ทดสอบ login และเอกสาร export
+13. แจ้งผู้ใช้งานเริ่มใช้งาน
+
+## Rollback Plan
+
+กรณี deploy แล้วพบปัญหารุนแรง:
+
+1. หยุดรับ traffic ชั่วคราวผ่าน maintenance page
+2. Restore code version ก่อนหน้า
+3. `npm install` หาก dependency เปลี่ยน
+4. `npm run build`
+5. Restart PM2
+6. Restore database จาก backup หาก migration ทำให้ข้อมูลเสียหาย
+7. Run smoke test อีกครั้ง
+
+## Post-Deploy Monitoring
+
+- `pm2 status`
+- `pm2 logs rmuti-loan-api`
+- `pm2 logs rmuti-loan-web`
+- Nginx access/error logs
+- MySQL container logs
+- Disk usage โดยเฉพาะ backup และ logs
+- ตรวจ response ของ `GET /health`
+
+## Commands Summary
+
+```bash
+cd /home/adminrd/docker-lamp-ssl/htdocs/loan
+docker compose up -d mysql
+npm install
+npm --prefix backend install
+npm --prefix frontend install
+npm run typecheck
+npm run build
+pm2 restart rmuti-loan-api
+pm2 restart rmuti-loan-web
+npm run test:smoke
+```

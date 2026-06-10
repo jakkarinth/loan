@@ -1,0 +1,84 @@
+# Phase 7: Testing and Improvements
+
+## Scope
+
+Phase 7 ทดสอบระบบหลังย้ายโปรเจกต์มาอยู่ที่ `/home/adminrd/docker-lamp-ssl/htdocs/loan` และปรับปรุงจุดที่พบจากการทดสอบจริง ทั้ง backend API, frontend UI, เอกสาร export และข้อมูลตัวอย่างภาษาไทย
+
+## Improvements
+
+- เพิ่ม `frontend/tsconfig.typecheck.json` และปรับ `frontend/package.json` ให้ `typecheck` ใช้ config แยก เพื่อเลี่ยง stale `.next/types` และการแก้ `tsconfig.json` อัตโนมัติของ Next.js หลัง build
+- เพิ่ม `database/seeds/002_demo_notice_thai_fix.sql` สำหรับแก้ข้อมูล demo หนังสือทวงและ note การขยายสัญญาให้เป็นภาษาไทย UTF-8
+- ปรับ dashboard mobile layout ใน `frontend/src/app/page.tsx` โดยเพิ่ม `min-w-0` ให้ grid/card ที่มีตาราง เพื่อไม่ให้ table `min-w-[640px]` ดันทั้งหน้าเกิด horizontal overflow
+- เพิ่ม `scripts/smoke-test.mjs` และคำสั่ง `npm run test:smoke` สำหรับตรวจ frontend, login, API หลัก และ document export ซ้ำได้ด้วยคำสั่งเดียว
+
+## Test Matrix
+
+### Static Checks
+
+- `npm run typecheck`
+  - Backend: `tsc --noEmit`
+  - Frontend: `tsc --noEmit --incremental false -p tsconfig.typecheck.json`
+- `npm run build`
+  - Backend build ผ่าน
+  - Next.js production build ผ่าน
+  - Static/dynamic routes build ครบ 10 routes
+
+### API Smoke Tests
+
+รันได้ด้วย:
+
+- `npm run test:smoke`
+
+ทดสอบ login ด้วย demo user:
+
+- Email: `finance@example.local`
+- Password: `Password123!`
+
+Endpoints ที่ทดสอบผ่าน:
+
+- `GET /api`
+- `GET /api/reference/loan-statuses`
+- `GET /api/loans`
+- `GET /api/loans/1`
+- `GET /api/reports/dashboard`
+- `GET /api/reports/overdue`
+- `GET /api/notices`
+
+### Document Export Tests
+
+Endpoints ที่ทดสอบผ่านและได้ไฟล์มากกว่า 1 KB:
+
+- `GET /api/documents/loans/1/contract.pdf`
+- `GET /api/documents/loans/1/payment.pdf`
+- `GET /api/documents/notices/1/notice.pdf`
+- `GET /api/documents/reports/summary.pdf`
+- `GET /api/documents/loans/1/contract.doc`
+- `GET /api/documents/notices/1/notice.doc`
+
+### Browser UI Tests
+
+ตรวจด้วย in-app browser:
+
+- `/` dashboard โหลดข้อมูลและไม่มี console error
+- `/loans` แสดงรายการเงินยืม
+- `/loans/1` แสดงรายละเอียดและลิงก์เอกสาร PDF/Word
+- `/reports` แสดงรายงานและลิงก์ export PDF/Word
+- `/notices` แสดงหนังสือทวงเป็นภาษาไทยถูกต้อง ไม่มี `????`
+- `/users` แสดงรายการสมาชิก
+- mobile viewport 390px:
+  - dashboard ไม่มี horizontal overflow หลังปรับ `min-w-0`
+  - loan detail ไม่มี horizontal overflow
+  - notices ไม่มี horizontal overflow
+  - loan form ไม่มี horizontal overflow
+
+## Current Dev URLs
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:4000/api`
+- MySQL: `localhost:3307`
+
+## Notes for Next Phase
+
+- เพิ่ม Playwright test suite แบบ browser automation เต็มรูปแบบสำหรับ regression testing
+- เพิ่ม role-based UI guard และ API authorization เชิงลึก
+- เพิ่ม production deployment checklist สำหรับ path ใต้ `htdocs/loan`

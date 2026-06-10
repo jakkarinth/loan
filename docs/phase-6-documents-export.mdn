@@ -1,0 +1,57 @@
+# Phase 6: Documents and Export
+
+## Scope
+
+Phase 6 เพิ่มระบบสร้างเอกสารสำหรับพิมพ์และดาวน์โหลดจากข้อมูลจริงในฐานข้อมูล โดยรองรับทั้ง PDF และ Word-compatible `.doc` สำหรับเอกสารหลักของระบบบริหารลูกหนี้เงินยืม
+
+## Backend
+
+เพิ่ม module `documents` ในฝั่ง Express:
+
+- `backend/src/modules/documents/document-data.ts` - query ข้อมูลรายการเงินยืม การจ่ายเงิน การขยายสัญญา หนังสือทวง และรายงานสรุป
+- `backend/src/modules/documents/renderers.ts` - render PDF ด้วย `pdfkit` และ render Word-compatible HTML `.doc`
+- `backend/src/modules/documents/routes.ts` - routes สำหรับดาวน์โหลดเอกสาร
+- `backend/src/routes/index.ts` - mount route `/api/documents`
+
+PDF renderer ใช้ฟอนต์ไทยจาก Windows หากมี (`/mnt/c/Windows/Fonts/tahoma.ttf`) และ fallback ไปที่ DejaVu Sans บน Linux
+
+## Export Endpoints
+
+- `GET /api/documents/loans/:id/contract.pdf`
+- `GET /api/documents/loans/:id/contract.doc`
+- `GET /api/documents/loans/:id/payment.pdf`
+- `GET /api/documents/loans/:id/payment.doc`
+- `GET /api/documents/extensions/:id/memo.pdf`
+- `GET /api/documents/extensions/:id/memo.doc`
+- `GET /api/documents/notices/:id/notice.pdf`
+- `GET /api/documents/notices/:id/notice.doc`
+- `GET /api/documents/reports/summary.pdf`
+- `GET /api/documents/reports/summary.doc`
+
+## Frontend
+
+เพิ่มลิงก์ดาวน์โหลดเอกสารในหน้า UI:
+
+- `/loans/[id]` - เอกสารสัญญายืมเงิน และใบจ่ายเงิน ทั้ง PDF/Word
+- `/reports` - export รายงานสรุป PDF/Word
+- `/notices` - export หนังสือทวงเงินยืม PDF/Word
+
+## Verification
+
+- `GET /api/documents/loans/1/contract.pdf` ตอบ `200 OK` และ `Content-Type: application/pdf`
+- `GET /api/documents/loans/1/contract.doc` ตอบ `200 OK` และ `Content-Type: application/msword; charset=utf-8`
+- `GET /api/documents/loans/1/payment.pdf` ตอบ `200 OK` และ `Content-Type: application/pdf`
+- `GET /api/documents/reports/summary.pdf` ตอบ `200 OK` และ `Content-Type: application/pdf`
+- ตรวจด้วย Browser แล้ว:
+  - `/loans/1` มีลิงก์ `สัญญา PDF`, `สัญญา Word`, `ใบจ่าย PDF`, `ใบจ่าย Word`
+  - `/reports` มีลิงก์ `Export PDF`, `Export Word`
+  - `/notices` มีลิงก์ `PDF`, `Word`
+  - ไม่มี console errors จากหน้าที่ตรวจ
+- `npm run typecheck` ผ่านทั้ง frontend/backend
+- `npm --prefix frontend run build` ผ่าน
+
+## Notes for Next Phase
+
+- หากต้องการ `.docx` แท้ ควรเพิ่ม library เฉพาะ เช่น `docx` และสร้าง template แบบ structured document
+- เพิ่ม template ตามแบบฟอร์มราชการจริงได้โดยแยก layout ต่อประเภทเอกสาร
+- เพิ่ม audit log สำหรับการดาวน์โหลด/พิมพ์เอกสารใน production

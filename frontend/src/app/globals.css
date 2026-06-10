@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Noto Sans Thai", "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  background: #f6f8f7;
+  color: #17211f;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+

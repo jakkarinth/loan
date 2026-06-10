@@ -1,0 +1,126 @@
+# Phase 8: Authentication and Security Hardening
+
+## Scope
+
+Phase 8 เพิ่มการบังคับ Login ก่อนเข้าระบบ, ปรับ Frontend ไปใช้ NextAuth session, และ harden จุดเสี่ยงหลักที่พบจาก security review หลัง Phase 7
+
+## Backend Protection
+
+เพิ่ม route protection ใน `backend/src/routes/index.ts`
+
+Public endpoints:
+
+- `GET /api`
+- `/api/auth/*`
+- `/api/reference/*`
+- `/api/departments/*` สำหรับหน้า register
+
+Protected ด้วย JWT:
+
+- `/api/loans/*`
+- `/api/extensions/*`
+- `/api/documents/*`
+
+Protected ด้วย JWT + role:
+
+- `/api/users/*`: `admin`, `finance_officer`
+- `/api/payments/*`: `admin`, `finance_officer`
+- `/api/repayments/*`: `admin`, `finance_officer`
+- `/api/notices/*`: `admin`, `finance_officer`
+- `/api/reports/*`: `admin`, `finance_officer`, `executive`
+
+เพิ่ม `requireRoles()` ใน `backend/src/middlewares/auth.ts` เพื่อให้ backend เป็นผู้ตัดสินสิทธิ์จริง ไม่พึ่งแค่ UI
+
+## Frontend Protection
+
+ปรับ Frontend จากการเก็บ JWT ใน `localStorage` ไปใช้ NextAuth session แล้ว
+
+- เพิ่ม `frontend/src/app/api/auth/[...nextauth]/route.ts`
+- ใช้ NextAuth `CredentialsProvider` โดย login ผ่าน backend `/api/auth/login`
+- เก็บ backend `access_token` ใน NextAuth JWT/session callback
+- เพิ่ม `frontend/src/components/session-provider.tsx` และครอบ app ด้วย `SessionProvider` ใน root layout
+- `frontend/src/components/app-shell.tsx` ใช้ `useSession({ required: true })`
+- ถ้าไม่มี session จะ redirect ไป `/login?next=...`
+- `frontend/src/app/login/page.tsx` ใช้ `signIn("credentials")`
+- `frontend/src/lib/api.ts` ใช้ `getSession()` เพื่อดึง `accessToken` และแนบ `Authorization: Bearer <token>` อัตโนมัติ
+- ถ้า API ตอบ `401` จะ `signOut({ redirect: false })` และ redirect ไป login
+- เพิ่ม logout ทั้ง desktop และ mobile
+- ไม่พบการใช้งาน `localStorage`, `loan_access_token`, `setAuthSession`, หรือ `getAuthSession` ใน `frontend/src`
+
+Session cookie ที่ NextAuth สร้างเป็น `next-auth.session-token` แบบ `HttpOnly` จึงลดความเสี่ยงจากการเก็บ token ใน browser storage โดยตรง
+
+## Authenticated Downloads
+
+เอกสาร PDF/Word ไม่ใช้ direct public link แล้ว
+
+- Loan detail ใช้ `downloadAuthenticated()`
+- Reports ใช้ `downloadAuthenticated()`
+- Notices ใช้ `downloadAuthenticated()`
+
+ผลคือ `/api/documents/*` ต้องมี Authorization header และ backend จะตรวจ JWT ก่อนส่งไฟล์
+
+## Security Hardening
+
+- Production ห้ามใช้ `JWT_SECRET=replace-with-secure-jwt-secret`
+- Production ต้องตั้ง `NEXTAUTH_SECRET` เป็นค่าสุ่มที่แข็งแรง
+- Production ต้องตั้ง `NEXTAUTH_URL` ให้ตรง domain จริง และเปิดผ่าน HTTPS
+- Production ไม่ส่งรายละเอียด database error กลับ client
+- Smoke test ตรวจ protected endpoints แบบไม่มี token ต้องตอบ `401`
+- Smoke test ตรวจ invalid token ต้องตอบ `401`
+- Smoke test ตรวจ borrower เข้า `/api/users` ต้องตอบ `403`
+- Smoke test ตรวจ finance officer เข้าถึง API หลักและ document export ได้
+- Smoke test ตรวจ NextAuth credentials flow ผ่าน `/api/auth/providers`, `/api/auth/csrf`, และ `/api/auth/callback/credentials`
+
+## Verification
+
+ผ่านแล้ว:
+
+- `npm run typecheck`
+- `npm run build`
+- `npm run test:smoke`
+- NextAuth credentials callback สร้าง `next-auth.session-token` แบบ `HttpOnly` ได้จริง
+- ตรวจ source แล้วไม่พบ auth token แบบ `localStorage` ใน `frontend/src`
+
+Runtime checks:
+
+- ไม่มี token:
+  - `GET /api/loans` -> `401`
+  - `GET /api/loans/1` -> `401`
+  - `GET /api/users` -> `401`
+  - `GET /api/reports/dashboard` -> `401`
+  - `GET /api/notices` -> `401`
+  - `GET /api/documents/loans/1/contract.pdf` -> `401`
+- token ไม่ถูกต้อง:
+  - `GET /api/loans` -> `401`
+- borrower role:
+  - `GET /api/users` -> `403`
+- finance officer role:
+  - API หลักและเอกสาร export ผ่าน smoke test
+
+## Files Updated
+
+- `frontend/src/app/api/auth/[...nextauth]/route.ts`
+- `frontend/src/types/next-auth.d.ts`
+- `frontend/src/components/session-provider.tsx`
+- `frontend/src/app/layout.tsx`
+- `frontend/src/lib/api.ts`
+- `frontend/src/app/login/page.tsx`
+- `frontend/src/components/app-shell.tsx`
+- `scripts/smoke-test.mjs`
+- `docs/phase-8-authentication-security-hardening.mdn`
+
+## Residual Risks
+
+- Role guard ยังเป็นระดับ route group เบื้องต้น ยังไม่ละเอียดถึง owner-level เช่น borrower เห็นเฉพาะรายการของตัวเอง
+- Register ยัง public และสร้าง user `active` ทันที ควรเปลี่ยนเป็น `pending` หรือให้ admin/finance approve ก่อนใน production
+- Backend access token ยังถูกเก็บอยู่ใน NextAuth session payload ที่ป้องกันด้วย NextAuth cookie ต้องตั้ง `NEXTAUTH_SECRET` ให้แข็งแรงและใช้ HTTPS เท่านั้น
+- ยังควรเพิ่ม rate limiting สำหรับ auth endpoints
+- ยังควรเพิ่ม audit log สำหรับ login, logout, failed login, document download และ action สำคัญของเจ้าหน้าที่
+
+## Recommended Next Security Phase
+
+- เพิ่ม owner-based authorization เช่น borrower เห็นเฉพาะ loan ของตัวเอง
+- เพิ่ม rate limit ให้ `/api/auth/login`, `/api/auth/register`, `/api/auth/forgot-password`
+- เพิ่ม audit log สำหรับเหตุการณ์ด้านความปลอดภัยและการดาวน์โหลดเอกสาร
+- เพิ่ม account approval flow สำหรับผู้สมัครใหม่
+- เพิ่ม Next.js middleware หากต้องการ redirect ก่อน render ฝั่ง client
