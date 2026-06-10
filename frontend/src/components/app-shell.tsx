@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -27,18 +28,19 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { status } = useSession({
-    required: true,
-    onUnauthenticated() {
+  const { status } = useSession();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
       redirectToLogin();
     }
-  });
+  }, [status]);
 
   function logout() {
     signOut({ callbackUrl: "/login" });
   }
 
-  if (status === "loading") {
+  if (status !== "authenticated") {
     return (
       <main className="grid min-h-screen place-items-center bg-slate-50 px-4 text-sm text-slate-500">
         กำลังตรวจสอบสิทธิ์การเข้าใช้งาน...
