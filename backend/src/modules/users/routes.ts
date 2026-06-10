@@ -17,6 +17,8 @@ const userSchema = z.object({
   last_name_th: z.string().trim().min(1).max(150),
   position_th: z.string().trim().max(150).nullable().optional(),
   phone: z.string().trim().max(50).nullable().optional(),
+  birth_date: z.string().date().nullable().optional(),
+  work_start_date: z.string().date().nullable().optional(),
   status: z.enum(["pending", "active", "suspended", "inactive"]).optional(),
   role_ids: z.array(z.number().int().positive()).optional()
 });
@@ -45,7 +47,7 @@ usersRouter.get(
     const rows = await queryRows<RowDataPacket[]>(
       `SELECT u.id, u.department_id, d.name_th AS department_name_th, u.employee_code, u.email,
               u.title_th, u.first_name_th, u.last_name_th, u.position_th, u.phone, u.status,
-              u.created_at, u.updated_at,
+              u.birth_date, u.work_start_date, u.created_at, u.updated_at,
               GROUP_CONCAT(r.code ORDER BY r.code) AS roles
        FROM users u
        LEFT JOIN departments d ON d.id = u.department_id
@@ -73,7 +75,8 @@ usersRouter.get(
     const row = await queryOne<RowDataPacket>(
       `SELECT u.id, u.department_id, d.name_th AS department_name_th, u.employee_code, u.email,
               u.title_th, u.first_name_th, u.last_name_th, u.position_th, u.phone, u.status,
-              u.email_verified_at, u.last_login_at, u.created_at, u.updated_at
+              u.birth_date, u.work_start_date, u.email_verified_at, u.last_login_at,
+              u.created_at, u.updated_at
        FROM users u
        LEFT JOIN departments d ON d.id = u.department_id
        WHERE u.id = :id AND u.deleted_at IS NULL`,
@@ -107,10 +110,12 @@ usersRouter.post(
       const [result] = await connection.execute(
         `INSERT INTO users (
           department_id, employee_code, email, password_hash, title_th, first_name_th,
-          last_name_th, position_th, phone, status, email_verified_at
+          last_name_th, position_th, phone, birth_date, work_start_date, status,
+          email_verified_at
         ) VALUES (
           :department_id, :employee_code, :email, :password_hash, :title_th, :first_name_th,
-          :last_name_th, :position_th, :phone, :status, :email_verified_at
+          :last_name_th, :position_th, :phone, :birth_date, :work_start_date, :status,
+          :email_verified_at
         )`,
         {
           department_id: body.department_id ?? null,
@@ -122,6 +127,8 @@ usersRouter.post(
           last_name_th: body.last_name_th,
           position_th: body.position_th ?? null,
           phone: body.phone ?? null,
+          birth_date: body.birth_date ?? null,
+          work_start_date: body.work_start_date ?? null,
           status: body.status ?? "active",
           email_verified_at: body.status === "active" ? new Date() : null
         }
@@ -197,4 +204,3 @@ usersRouter.delete(
     res.status(204).send();
   })
 );
-

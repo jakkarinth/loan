@@ -20,7 +20,9 @@ const registerSchema = z.object({
   first_name_th: z.string().trim().min(1).max(150),
   last_name_th: z.string().trim().min(1).max(150),
   position_th: z.string().trim().max(150).nullable().optional(),
-  phone: z.string().trim().max(50).nullable().optional()
+  phone: z.string().trim().max(50).nullable().optional(),
+  birth_date: z.string().date().nullable().optional(),
+  work_start_date: z.string().date().nullable().optional()
 });
 
 const loginSchema = z.object({
@@ -58,10 +60,12 @@ authRouter.post(
       const [result] = await connection.execute(
         `INSERT INTO users (
           department_id, employee_code, email, password_hash, title_th,
-          first_name_th, last_name_th, position_th, phone, status
+          first_name_th, last_name_th, position_th, phone, birth_date,
+          work_start_date, status
         ) VALUES (
           :department_id, :employee_code, :email, :password_hash, :title_th,
-          :first_name_th, :last_name_th, :position_th, :phone, 'active'
+          :first_name_th, :last_name_th, :position_th, :phone, :birth_date,
+          :work_start_date, 'active'
         )`,
         {
           department_id: body.department_id ?? null,
@@ -72,7 +76,9 @@ authRouter.post(
           first_name_th: body.first_name_th,
           last_name_th: body.last_name_th,
           position_th: body.position_th ?? null,
-          phone: body.phone ?? null
+          phone: body.phone ?? null,
+          birth_date: body.birth_date ?? null,
+          work_start_date: body.work_start_date ?? null
         }
       );
       const userId = Number((result as { insertId: number }).insertId);

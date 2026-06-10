@@ -32,7 +32,9 @@ export default function RegisterPage() {
       title_th: String(form.get("title_th") || ""),
       first_name_th: String(form.get("first_name_th") || ""),
       last_name_th: String(form.get("last_name_th") || ""),
-      position_th: String(form.get("position_th") || "")
+      position_th: String(form.get("position_th") || ""),
+      birth_date: String(form.get("birth_date") || "") || null,
+      work_start_date: String(form.get("work_start_date") || "") || null
     };
 
     try {
@@ -88,6 +90,8 @@ export default function RegisterPage() {
           </label>
           <Field name="title_th" label="คำนำหน้า" />
           <Field name="position_th" label="ตำแหน่ง" />
+          <Field name="birth_date" label="วันเกิด" type="date" />
+          <Field name="work_start_date" label="วันที่เริ่มปฏิบัติงาน" type="date" />
           <Field name="first_name_th" label="ชื่อ" required />
           <Field name="last_name_th" label="นามสกุล" required />
           <div className="flex items-center justify-between gap-3 sm:col-span-2">

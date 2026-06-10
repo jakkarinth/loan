@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch, type ApiListResponse } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import type { UserSummary } from "@/types/api";
 
 export default function UsersPage() {
@@ -31,12 +32,14 @@ export default function UsersPage() {
       ) : null}
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-5 py-3">ชื่อ</th>
                 <th className="px-5 py-3">อีเมล</th>
                 <th className="px-5 py-3">หน่วยงาน</th>
+                <th className="px-5 py-3">วันเกิด</th>
+                <th className="px-5 py-3">เริ่มปฏิบัติงาน</th>
                 <th className="px-5 py-3">บทบาท</th>
               </tr>
             </thead>
@@ -48,6 +51,8 @@ export default function UsersPage() {
                   </td>
                   <td className="px-5 py-3">{user.email}</td>
                   <td className="px-5 py-3">{user.department_name_th ?? "-"}</td>
+                  <td className="px-5 py-3">{formatDate(user.birth_date)}</td>
+                  <td className="px-5 py-3">{formatDate(user.work_start_date)}</td>
                   <td className="px-5 py-3">{typeof user.roles === "string" ? user.roles : "-"}</td>
                 </tr>
               ))}

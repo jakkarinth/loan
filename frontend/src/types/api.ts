@@ -32,6 +32,8 @@ export type UserSummary = {
   title_th?: string | null;
   department_id?: number | null;
   department_name_th?: string | null;
+  birth_date?: string | null;
+  work_start_date?: string | null;
   roles?: string | Array<{ id: number; code: string; name_th: string }>;
 };
 
