@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   BarChart3,
-  ClipboardCheck,
   FileText,
   LayoutDashboard,
   LogIn,
@@ -85,26 +84,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-64">
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
-          <div className="flex min-h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md bg-brand-light p-2 text-brand">
-                <ClipboardCheck size={20} aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-950">
-                  มหาวิทยาลัยเทคโนโลยีราชมงคลอีสาน วิทยาเขตสุรินทร์
-                </p>
-                <p className="text-xs text-slate-500">Finance Loan Management</p>
-              </div>
-            </div>
+          <div className="flex min-h-16 items-center justify-end px-4 sm:px-6 lg:px-8">
             <div className="hidden items-center gap-2 sm:flex">
-              <Link
-                href="/loans/new"
-                className="inline-flex min-h-10 items-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-dark"
-              >
-                <PlusCircle size={16} aria-hidden="true" />
-                เพิ่มคำขอ
-              </Link>
               <button
                 onClick={logout}
                 className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
