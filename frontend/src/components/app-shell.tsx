@@ -27,7 +27,11 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const userName = [
+    session?.user?.firstNameTh,
+    session?.user?.lastNameTh
+  ].filter(Boolean).join(" ") || session?.user?.name || session?.user?.email || "";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -86,6 +90,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex min-h-16 items-center justify-end px-4 sm:px-6 lg:px-8">
             <div className="hidden items-center gap-2 sm:flex">
+              {userName ? (
+                <span className="max-w-64 truncate text-sm font-medium text-slate-700">
+                  {userName}
+                </span>
+              ) : null}
               <button
                 onClick={logout}
                 className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -116,7 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={logout}
               className="shrink-0 rounded-md bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
             >
-              ออกจากระบบ
+              {userName ? `${userName} / ออกจากระบบ` : "ออกจากระบบ"}
             </button>
           </nav>
         </header>
