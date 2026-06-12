@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { AlertCircle, ArrowRight, Banknote, Clock3, FileText, WalletCards } from "lucide-react";
+import { AlertCircle, Banknote, Clock3, FileText, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch, type ApiDataResponse } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
@@ -32,13 +31,6 @@ export default function DashboardPage() {
             ติดตามยอดเงินยืม รายการรอตรวจสอบ และลูกหนี้คงค้างของวิทยาเขต
           </p>
         </div>
-        <Link
-          href="/loans/new"
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white hover:bg-brand-dark"
-        >
-          บันทึกขอยืมเงิน
-          <ArrowRight size={16} aria-hidden="true" />
-        </Link>
       </div>
 
       {error ? (
