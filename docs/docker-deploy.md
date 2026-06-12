@@ -18,6 +18,10 @@ DB_PORT=3306
 DB_USER=loan_user
 DB_PASSWORD=your-password
 DB_NAME=rmuti_surin_loan
+NEXT_PUBLIC_API_BASE_URL=http://203.158.199.59:4000/api
+API_INTERNAL_BASE_URL=http://backend:4000/api
+NEXTAUTH_URL=http://203.158.199.59:3000
+CLIENT_ORIGIN=http://203.158.199.59:3000
 NEXTAUTH_SECRET=your-strong-secret
 JWT_SECRET=your-strong-secret
 ```
