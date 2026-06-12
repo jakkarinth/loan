@@ -35,27 +35,6 @@ docker compose build backend frontend
 docker compose up -d backend frontend
 ```
 
-## ใช้ MySQL Container ที่มากับ Compose
-
-ถ้า host ยังไม่มี MySQL หรืออยากแยก database สำหรับระบบนี้:
-
-```bash
-docker compose --profile local-db up -d mysql
-```
-
-ตั้งค่า `.env`:
-
-```env
-DB_HOST=mysql
-DB_PORT=3306
-```
-
-แล้วรัน:
-
-```bash
-docker compose --profile local-db up -d backend frontend
-```
-
 ## ตรวจสอบ
 
 ```bash
